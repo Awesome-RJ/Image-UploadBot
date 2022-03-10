@@ -31,20 +31,20 @@ TGraph = Client(
 db = Database(Credentials.MONGODB_URI, Credentials.SESSION_NAME)
 broadcast_ids = {}
 home_text = None
-if Credentials.HOME_MSG:
-    home_text = Credentials.HOME_MSG
-else:
-    home_text = """
+home_text = (
+    Credentials.HOME_MSG
+    or """
 Hi, [{}](tg://user?id={})
 I am Telegram to telegra.ph Image Uploader Bot.
 
 Send me any Image I will upload to telegra.ph and give you link.
 """
+)
+
 about_text = None
-if Credentials.ABOUT_MSG:
-    about_text = Credentials.ABOUT_MSG
-else:
-    about_text = """
+about_text = (
+    Credentials.ABOUT_MSG
+    or """
 🤖 **My Name:** [Telegraph Image Bot](https://t.me/AH_TelegraphBot)
 
 📝 **Language:** [Python 3](https://www.python.org)
@@ -59,6 +59,7 @@ else:
 
 📢 **Updates Channel:** [Discovery Projects](https://t.me/Discovery_Updates)
 """
+)
 async def send_msg(user_id, message):
     try:
         await message.forward(chat_id=user_id)
@@ -82,9 +83,7 @@ async def start(client, message):
     ## --- Users Adder --- ##
     if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id)
-    ## --- Force Sub --- ##
-    update_channel = Credentials.UPDATES_CHANNEL
-    if update_channel:
+    if update_channel := Credentials.UPDATES_CHANNEL:
         try:
             user = await client.get_chat_member(update_channel, message.from_user.id)
             if user.status == "kicked":
@@ -146,12 +145,13 @@ async def broadcast_(c, m):
     all_users = await db.get_all_users()
     broadcast_msg = m.reply_to_message
     while True:
-        broadcast_id = ''.join([random.choice(string.ascii_letters) for i in range(3)])
+        broadcast_id = ''.join([random.choice(string.ascii_letters) for _ in range(3)])
         if not broadcast_ids.get(broadcast_id):
             break
     out = await m.reply_text(
-        text = f"Broadcast initiated! You will be notified with log file when all the users are notified."
+        text="Broadcast initiated! You will be notified with log file when all the users are notified."
     )
+
     start_time = time.time()
     total_users = await db.total_users_count()
     done = 0
@@ -212,9 +212,7 @@ async def getimage(client, message):
     ## --- Users Adder --- ##
     if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id)
-    ## --- Force Sub --- ##
-    update_channel = Credentials.UPDATES_CHANNEL
-    if update_channel:
+    if update_channel := Credentials.UPDATES_CHANNEL:
         try:
             user = await client.get_chat_member(update_channel, message.chat.id)
             if user.status == "kicked":
@@ -247,13 +245,12 @@ async def getimage(client, message):
                 disable_web_page_preview=True
             )
             return
-    if message.document:
-        if not message.document.file_name.endswith(".jpg"):
-            return
+    if message.document and not message.document.file_name.endswith(".jpg"):
+        return
     tmp = os.path.join("downloads", str(message.chat.id))
     if not os.path.isdir(tmp):
         os.makedirs(tmp)
-    img_path = os.path.join(tmp, str(uuid.uuid4()) + ".jpg")
+    img_path = os.path.join(tmp, f'{str(uuid.uuid4())}.jpg')
     dwn = await message.reply_text("Downloading ...", True)
     img_path = await client.download_media(message=message, file_name=img_path)
     await dwn.edit_text("Uploading ...")
